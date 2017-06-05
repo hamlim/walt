@@ -1,6 +1,9 @@
 const Syntax = {
   Keyword: 'Keyword',
   BinaryExpression: 'BinaryExpression',
+  BinaryOperator: 'BinaryOperator',
+  UnaryOperator: 'UnaryOperator',
+  TernaryOperator: 'TernaryOperator',
   NumberLiteral: 'NumberLiteral',
   StringLiteral: 'StringLiteral',
   Punctuator: 'Punctuator',

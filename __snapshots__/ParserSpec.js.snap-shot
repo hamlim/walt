@@ -2,19 +2,31 @@ exports['builds an AST from a Token Stream 1'] = {
   "type": "Program",
   "body": [
     {
+      "id": {
+        "type": "Identifier",
+        "value": "x",
+        "start": {
+          "line": 1,
+          "col": 4
+        },
+        "end": {
+          "line": 1,
+          "col": 5
+        }
+      },
       "type": "Declaration",
-      "start": {
-        "line": 1,
-        "col": 0
-      },
-      "end": {
-        "line": 1,
-        "col": 10
-      },
-      "id": "x",
-      "typedef": "i32",
-      "isGlobal": true,
-      "isConstant": false
+      "typeOf": {
+        "type": "Type",
+        "value": "i32",
+        "start": {
+          "line": 1,
+          "col": 7
+        },
+        "end": {
+          "line": 1,
+          "col": 10
+        }
+      }
     }
   ]
 }
@@ -23,55 +35,48 @@ exports['builds an AST from a Token Stream 2'] = {
   "type": "Program",
   "body": [
     {
-      "type": "Declaration",
-      "start": {
-        "line": 1,
-        "col": 0
-      },
-      "end": {
-        "line": 1,
-        "col": 10
-      },
-      "id": "x",
-      "typedef": "i32",
-      "isGlobal": true,
-      "isConstant": false
-    },
-    {
-      "type": "Assignment",
-      "start": {
-        "line": 1,
-        "col": 11
-      },
-      "end": {
-        "line": 1,
-        "col": 15
-      },
-      "left": {
-        "type": "Declaration",
+      "id": "BinaryExpression",
+      "operator": {
+        "type": "BinaryOperator",
+        "value": "=",
         "start": {
           "line": 1,
-          "col": 0
+          "col": 11
         },
         "end": {
           "line": 1,
-          "col": 10
+          "col": 12
+        }
+      },
+      "left": {
+        "id": {
+          "type": "Identifier",
+          "value": "x",
+          "start": {
+            "line": 1,
+            "col": 4
+          },
+          "end": {
+            "line": 1,
+            "col": 5
+          }
         },
-        "id": "x",
-        "typedef": "i32",
-        "isGlobal": true,
-        "isConstant": false
+        "type": "Declaration",
+        "typeOf": {
+          "type": "Type",
+          "value": "i32",
+          "start": {
+            "line": 1,
+            "col": 7
+          },
+          "end": {
+            "line": 1,
+            "col": 10
+          }
+        }
       },
       "right": {
         "type": "Constant",
-        "start": {
-          "line": 1,
-          "col": 13
-        },
-        "end": {
-          "line": 1,
-          "col": 15
-        },
         "value": "42"
       }
     }
@@ -82,98 +87,9 @@ exports['builds an AST from a Token Stream 3'] = {
   "type": "Program",
   "body": [
     {
-      "type": "Declaration",
-      "start": {
-        "line": 1,
-        "col": 0
-      },
-      "end": {
-        "line": 1,
-        "col": 12
-      },
-      "id": "x",
-      "typedef": "i32",
-      "isGlobal": true,
-      "isConstant": true
-    }
-  ]
-}
-
-exports['builds an AST from a Token Stream 4'] = {
-  "type": "Program",
-  "body": [
-    {
-      "type": "Declaration",
-      "start": {
-        "line": 1,
-        "col": 0
-      },
-      "end": {
-        "line": 1,
-        "col": 13
-      },
-      "id": "x",
-      "typedef": "i32",
-      "isGlobal": true,
-      "isConstant": true
-    },
-    {
-      "type": "Assignment",
-      "start": {
-        "line": 1,
-        "col": 14
-      },
-      "end": {
-        "line": 1,
-        "col": 18
-      },
-      "left": {
-        "type": "Declaration",
-        "start": {
-          "line": 1,
-          "col": 0
-        },
-        "end": {
-          "line": 1,
-          "col": 13
-        },
-        "id": "x",
-        "typedef": "i32",
-        "isGlobal": true,
-        "isConstant": true
-      },
-      "right": {
-        "type": "Constant",
-        "start": {
-          "line": 1,
-          "col": 16
-        },
-        "end": {
-          "line": 1,
-          "col": 18
-        },
-        "value": "42"
-      }
-    }
-  ]
-}
-
-exports['builds an AST for binary expressions 1'] = {
-  "type": "Program",
-  "body": [
-    {
-      "type": "BinaryExpression",
-      "start": {
-        "line": 1,
-        "col": 0
-      },
-      "end": {
-        "line": 1,
-        "col": 9
-      },
-      "operator": {
-        "type": "Punctuator",
-        "value": "*",
+      "id": {
+        "type": "Identifier",
+        "value": "x",
         "start": {
           "line": 1,
           "col": 6
@@ -182,6 +98,161 @@ exports['builds an AST for binary expressions 1'] = {
           "line": 1,
           "col": 7
         }
+      },
+      "type": "Declaration",
+      "typeOf": {
+        "type": "Type",
+        "value": "i32",
+        "start": {
+          "line": 1,
+          "col": 9
+        },
+        "end": {
+          "line": 1,
+          "col": 12
+        }
+      }
+    }
+  ]
+}
+
+exports['builds an AST from a Token Stream 4'] = {
+  "type": "Program",
+  "body": [
+    {
+      "id": "BinaryExpression",
+      "operator": {
+        "type": "BinaryOperator",
+        "value": "=",
+        "start": {
+          "line": 1,
+          "col": 14
+        },
+        "end": {
+          "line": 1,
+          "col": 15
+        }
+      },
+      "left": {
+        "id": {
+          "type": "Identifier",
+          "value": "x",
+          "start": {
+            "line": 1,
+            "col": 6
+          },
+          "end": {
+            "line": 1,
+            "col": 7
+          }
+        },
+        "type": "Declaration",
+        "typeOf": {
+          "type": "Type",
+          "value": "i32",
+          "start": {
+            "line": 1,
+            "col": 10
+          },
+          "end": {
+            "line": 1,
+            "col": 13
+          }
+        }
+      },
+      "right": {
+        "type": "Constant",
+        "value": "42"
+      }
+    }
+  ]
+}
+
+exports['builds an AST from a Token Stream 5'] = {
+  "type": "Program",
+  "body": [
+    {
+      "id": "BinaryExpression",
+      "operator": {
+        "type": "BinaryOperator",
+        "value": "+",
+        "start": {
+          "line": 1,
+          "col": 18
+        },
+        "end": {
+          "line": 1,
+          "col": 19
+        }
+      },
+      "left": {
+        "id": "BinaryExpression",
+        "operator": {
+          "type": "BinaryOperator",
+          "value": "-",
+          "start": {
+            "line": 1,
+            "col": 16
+          },
+          "end": {
+            "line": 1,
+            "col": 17
+          }
+        },
+        "left": {
+          "id": "BinaryExpression",
+          "operator": {
+            "type": "BinaryOperator",
+            "value": "=",
+            "start": {
+              "line": 1,
+              "col": 13
+            },
+            "end": {
+              "line": 1,
+              "col": 14
+            }
+          },
+          "left": {
+            "id": {
+              "type": "Identifier",
+              "value": "x",
+              "start": {
+                "line": 1,
+                "col": 6
+              },
+              "end": {
+                "line": 1,
+                "col": 7
+              }
+            },
+            "type": "Declaration",
+            "typeOf": {
+              "type": "Type",
+              "value": "i32",
+              "start": {
+                "line": 1,
+                "col": 9
+              },
+              "end": {
+                "line": 1,
+                "col": 12
+              }
+            }
+          },
+          "right": {
+            "type": "Constant",
+            "value": "9"
+          }
+        },
+        "right": {
+          "type": "Constant",
+          "value": "5"
+        }
+      },
+      "right": {
+        "type": "Constant",
+        "value": "2"
       }
     }
   ]

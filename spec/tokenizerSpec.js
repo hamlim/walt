@@ -20,10 +20,10 @@ describe('Tokenizer', () => {
   describe('next', () => {
     let tokenizer;
     it('reads tokens, ignoring whitespace', () => {
-      const tokenizer = new Tokenizer(new Stream('     global'), tokenParsers);
+      const tokenizer = new Tokenizer(new Stream('     :'), tokenParsers);
       expect(tokenizer.next()).toEqual({
-        type: Syntax.Keyword,
-        value: 'global',
+        type: Syntax.BinaryOperator,
+        value: ':',
         start: jasmine.any(Object),
         end: jasmine.any(Object)
       });
@@ -87,17 +87,17 @@ describe('Tokenizer', () => {
     });
 
     it('matches constant value to constant type', () => {
-      const tokenizer = new Tokenizer(new Stream('-2'), tokenParsers);
+      const tokenizer = new Tokenizer(new Stream('2'), tokenParsers);
       expect(tokenizer.next()).toEqual({
         type: Syntax.Constant,
-        value: '-2',
+        value: '2',
         start: jasmine.any(Object),
         end: jasmine.any(Object)
       });
-      tokenizer.stream = new Stream('+2');
+      tokenizer.stream = new Stream('2');
       expect(tokenizer.next()).toEqual({
         type: Syntax.Constant,
-        value: '+2',
+        value: '2',
         start: jasmine.any(Object),
         end: jasmine.any(Object)
       });
@@ -118,10 +118,10 @@ describe('Tokenizer', () => {
         end: jasmine.any(Object)
       });
 
-      tokenizer.stream = new Stream('-0.2');
+      tokenizer.stream = new Stream('0.2');
       expect(tokenizer.next()).toEqual({
         type: Syntax.Constant,
-        value: '-0.2',
+        value: '0.2',
         start: jasmine.any(Object),
         end: jasmine.any(Object)
       });
@@ -132,6 +132,16 @@ describe('Tokenizer', () => {
       expect(tokenizer.next()).toEqual({
         type: Syntax.Identifier,
         value: 'sizeoffoobar',
+        start: jasmine.any(Object),
+        end: jasmine.any(Object)
+      });
+    });
+
+    it('matches identifiers with operators as tails', () => {
+      const tokenizer = new Tokenizer(new Stream('a:'), tokenParsers);
+      expect(tokenizer.next()).toEqual({
+        type: Syntax.Identifier,
+        value: 'a',
         start: jasmine.any(Object),
         end: jasmine.any(Object)
       });

@@ -16,8 +16,8 @@ const numberOrDot = char => {
 };
 
 const root = char => {
-  if (char === '-' || char === '+')
-    return numberOrDot;
+  // if (char === '-' || char === '+')
+  //   return numberOrDot;
 
   if (isDot(char))
     return number;

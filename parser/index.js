@@ -5,6 +5,8 @@ const punctuator = require('./punctuator');
 const identifier = require('./identifier');
 const type = require('./type');
 const constant = require('./constant');
+const binary = require('./binary');
+const unary = require('./unary');
 
 module.exports = {
   Tokenizer,
@@ -12,10 +14,11 @@ module.exports = {
   type,
   keyword,
   constant,
+  binary,
   punctuator,
   identifier,
   tokenParsers: [
-    keyword, constant, punctuator, type, identifier
+    binary, unary, keyword, constant, punctuator, type, identifier
   ]
 };
 

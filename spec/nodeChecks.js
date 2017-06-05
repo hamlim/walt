@@ -4,6 +4,7 @@ module.exports = {
     'let x: i32 = 42',
     'const x: i32',
     'const x : i32 = 42',
+    'const x: i32 = 9-5+2'
   ],
   rssignment: [
     'x = 1',
@@ -12,6 +13,7 @@ module.exports = {
     '1 = 0'
   ],
   binary: [
+    '9-5+2',
     '2 + 2 * 1'
   ]
 };

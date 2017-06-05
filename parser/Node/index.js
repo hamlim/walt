@@ -43,7 +43,8 @@ const binaryExpression = (operator, left, right) => {
     type: Syntax.BinaryExpression,
     start: left.start,
     end: right.end,
-    operator: operator
+    operator: operator,
+    left
   };
 };
 
