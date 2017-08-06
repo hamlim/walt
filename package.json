@@ -6,7 +6,7 @@
   "scripts": {
     "test": "node_modules/ava/cli.js",
     "integration": "./integration.sh",
-    "test:units": "ava",
+    "test:units": "npm test",
     "test:integration": "./integration.sh"
   },
   "repository": {
