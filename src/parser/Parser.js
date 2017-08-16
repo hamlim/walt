@@ -5,14 +5,13 @@ const Syntax = require('./Syntax');
 const Context = require('./Context');
 const { last } = require('ramda');
 
-function getTypeValue(typedef) {
-  switch(typedef) {
-    case 'i32':
-      return I32;
-    default:
-      throw new Error('unknown type ' + typedef);
-  }
-}
+const precedence = {
+  '=': 99,
+  '+': 0,
+  '-': 0,
+  '*': 1,
+  '/': 1
+};
 
 class Parser {
   constructor(tokenStream) {
@@ -79,8 +78,9 @@ class Parser {
 
   punctuator(parent, mark) {
     switch(this.current.value) {
+      case ';':
+        return null;
       case '=':
-        return this.assignment(parent, mark);
       case '+':
       case '*':
       case '-':
@@ -109,29 +109,41 @@ class Parser {
 
   export(parent, mark) {
     return {
+      type: Syntax.Export,
       target: this.expression(parent, mark)
     };
   }
 
-  assignment(parent, { start }) {
-    const left = last(parent.body);
-    const right = this.expression();
-    const { end } = this.current;
-    return {
-      type: Syntax.Assignment,
-      start, end, left, right
-    };
-  }
-
   binary(parent, mark) {
-    const { start } = parent.body.pop();
-    const operator = this.current;
-    return {
-      start,
-      operator,
+    let left = last(parent.body);
+    const operator = this.current.value;
+    const start = this.current.start;
+    const right = this.expression(parent)
+    const node = {
       type: Syntax.BinaryExpression,
-      right: this.expression(parent)
+      operator,
+      left,
+      right,
+      loc: {
+        start,
+        end: right.end
+      }
     };
+
+    if (left && left.type === Syntax.BinaryExpression) {
+      const lp = precedence[left.operator];
+      const rp = precedence[operator];
+
+      if (lp !== rp) {
+        node.left = left.right;
+        left.right = node;
+        return null;
+      }
+    }
+
+    parent.body.pop();
+
+    return node;
   }
 
   declaration(parent, { start }) {
@@ -142,29 +154,45 @@ class Parser {
     this.expect(Syntax.Punctuator, [':']);
     this.stream.next();
     this.expect(Syntax.Type);
-    const { end, value: typedef } = this.stream.next();
+    const typedef = this.stream.next();
+    let end = typedef.end;
+    let init = null;
+
+    // Constants must be initialized
+    if (!mutable)
+      this.expect(Syntax.Punctuator, ['=']);
+
+    if (this.stream.peek() && this.stream.peek().value === '=') {
+      this.stream.next();
+      init = this.expression();
+      end = init.loc.end;
+    }
 
     return {
       type: Syntax.Declaration,
+      init,
       mutable,
+      typedef: typedef.value,
       id,
-      start,
-      end
+      loc: {
+        start,
+        end
+      }
     };
   }
 
   identifier(parent, { start, end }) {
     const { value: id } = this.current;
-    return { type: Syntax.Identifier, start, end, id };
+    return { type: Syntax.Identifier, loc: { start, end }, id };
   }
 
   constant(parent, { start, end }) {
     const { value } = this.current;
-    return { type: Syntax.Constant, start, end };
+    return { type: Syntax.Constant, loc: { start, end }, value };
   }
 
   // Get the ast
-  parseProgram() {
+  program() {
     // No code, no problem, empty ast equals
     // (module) ; the most basic wasm module
     if (!this.stream || !this.stream.length) {
@@ -186,7 +214,7 @@ class Parser {
   }
 
   parse() {
-    return this.parseProgram();
+    return this.program();
   }
 }
 
