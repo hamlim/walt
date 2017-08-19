@@ -19,26 +19,36 @@ class Parser {
       throw `Parser expects a TokenStream instead received ${tokenStream}`;
 
     this.stream = tokenStream;
-    this.current = null;
+    this.token = this.stream.next();
     this.globalSymbols = {};
     this.localSymbols = {};
   }
 
-  unexpectedValue(value, line, col) {
-    return new Error(`Unexpected value at ${line}:${col}.
-                      Expected ${value}`);
+  unexpectedValue(value) {
+    const { line, col } = this.token.start;
+    return new Error(
+      `Unexpected value at ${line}:${col}.
+         Value   : ${this.token.value}
+         Expected: ${value}`
+    );
   }
 
-  unexpected(token, line, col) {
-    return new Error(`Unexpected value at ${line}:${col}.
-                      Expected ${token}`);
+  unexpected(token) {
+    const { line, col } = this.token.start;
+    return new Error(
+      `Unexpected token at ${line}:${col}, ${this.token.value}
+         Token   : ${this.token.type}
+         Expected: ${token}`
+    );
   }
 
-  unknown({ value, start: { line, col } }) {
+  unknown({ value }) {
+    const { line, col } = this.token.start;
     return new Error(`Unexpected token at ${line}:${col} ${value}`);
   }
 
-  unsupported({ value, start: { line, col } }) {
+  unsupported() {
+    const { value, line, col } = this.token.start;
     return new Error(`Language feature not supported ${line}:${col} ${value}`);
   }
 
@@ -50,34 +60,58 @@ class Parser {
       throw this.unexpectedValue(nextValue, start.line, start.col);
   }
 
+  next() {
+    this.token = this.stream.next();
+  }
+
+  eat(value, type) {
+    if (value) {
+      if (value.includes(this.token.value)) {
+        this.next();
+        return true;
+      }
+      return false;
+    }
+
+    if (this.token.type === type) {
+      this.next();
+      return true;
+    }
+
+    return false;
+  }
+
   startNode() {
-    const { start, end } = this.current;
+    return { start: this.token.start, range: [this.token.start] };
+  }
+
+  endNode(node, type) {
     return {
-      start,
-      end
+      ...node,
+      type,
+      end: this.token.end,
+      range: node.range.concat(this.token.end)
     };
   }
 
-  expression(parent = { body: [] }, mark = null) {
-    this.current = this.stream.next();
-    mark = mark || this.startNode();
+  expression(node = this.startNode()) {
 
-    switch(this.current.type) {
+    switch(this.token.type) {
       case Syntax.Keyword:
-        return this.keyword(parent, mark);
+        return this.keyword(node);
       case Syntax.Punctuator:
-        return this.punctuator(parent, mark);
+        return this.punctuator(node);
       case Syntax.Constant:
-        return this.constant(parent, mark);
+        return this.constant(node);
       case Syntax.Identifier:
-        return this.identifier(parent, mark);
+        return this.identifier(node);
       default:
         throw this.unknown(this.current);
     }
   }
 
-  punctuator(parent, mark) {
-    switch(this.current.value) {
+  punctuator(node) {
+    switch(this.token.value) {
       case ';':
         return null;
       case '=':
@@ -86,99 +120,57 @@ class Parser {
       case '-':
       case '/':
       case '%':
-        return this.binary(parent, mark);
+        return this.binary(node);
       default:
         throw this.unsupported(this.current);
     }
   }
 
-  keyword(parent, mark) {
-    mark = mark || this.startNode();
-    switch(this.current.value) {
+  keyword(node) {
+    switch(this.token.value) {
       case 'let':
       case 'const':
       case 'function':
-        return this.declaration(parent, mark);
+        return this.declaration(node);
       case 'export':
-        this.expect(Syntax.Keyword, ['let', 'const', 'function']);
-        return this.export(parent, mark);
+        return this.export(node);
       default:
         throw this.unsupported(this.current);
     }
   }
 
-  export(parent, mark) {
-    return {
-      type: Syntax.Export,
-      target: this.expression(parent, mark)
-    };
-  }
+  export(node) {
+    this.eat(['export']);
 
-  binary(parent, mark) {
-    let left = last(parent.body);
-    const operator = this.current.value;
-    const start = this.current.start;
-    const right = this.expression(parent)
-    const node = {
-      type: Syntax.BinaryExpression,
-      operator,
-      left,
-      right,
-      loc: {
-        start,
-        end: right.end
-      }
-    };
-
-    if (left && left.type === Syntax.BinaryExpression) {
-      const lp = precedence[left.operator];
-      const rp = precedence[operator];
-
-      if (lp !== rp) {
-        node.left = left.right;
-        left.right = node;
-        return null;
-      }
+    if (this.eat(['const', 'let'])) {
+      node.declaration = this.declaration(this.startNode());
+      return this.endNode(node, Syntax.Export);
     }
 
-    parent.body.pop();
+    throw this.unexpected(Syntax.Keyword);
+  }
 
+  binary(node) {
     return node;
   }
 
-  declaration(parent, { start }) {
-    this.expect(Syntax.Identifier);
-    const mutable = 'const' === this.current.value;
-    const { value: id } = this.stream.next();
+  declaration(node) {
+    node.id = this.token.value
+    if (!this.eat(null, Syntax.Identifier))
+      throw this.unexpected(Syntax.Identifier);
 
-    this.expect(Syntax.Punctuator, [':']);
-    this.stream.next();
-    this.expect(Syntax.Type);
-    const typedef = this.stream.next();
-    let end = typedef.end;
-    let init = null;
+    if (!this.eat([':']))
+      throw this.unexpectedValue(':');
 
-    // Constants must be initialized
-    if (!mutable)
-      this.expect(Syntax.Punctuator, ['=']);
+    if (!this.eat(null, Syntax.Type))
+      throw this.unexpected(Syntax.Type);
 
-    if (this.stream.peek() && this.stream.peek().value === '=') {
-      this.stream.next();
-      init = this.expression();
-      end = init.loc.end;
+    if (this.eat(['='])) {
+      this.expression(node);
+      return this.endNode(node, Syntax.Declaration);
     }
 
-    return {
-      type: Syntax.Declaration,
-      init,
-      mutable,
-      typedef: typedef.value,
-      id,
-      loc: {
-        start,
-        end
-      }
-    };
+    this.unexpectedValue('=');
   }
 
   identifier(parent, { start, end }) {
@@ -199,18 +191,15 @@ class Parser {
       return {};
     }
 
-    const body = [];
-    const node = { body, context: new Context() };
-
+    const node = this.startNode();
+    node.body = [];
     while (this.stream.peek()) {
-      const child = this.expression(node);
+      const child = this.expression();
       if (child)
-        body.push(child);
+        node.body.push(child);
     }
 
-    return {
-      body
-    };
+    return node;
   }
 
   parse() {

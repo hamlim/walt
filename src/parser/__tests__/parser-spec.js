@@ -26,8 +26,8 @@ test('compiles globals', t => {
 });
 
 test.only('compiles exports', t => {
+  debugger;
   const tokens = tokenizer.exportGlobals.parse();
   const result = new Parser(new TokenStream(tokens)).parse();
-  debugger;
 });
 
