@@ -16,7 +16,6 @@ const tokenizer = {
 test('the most basic of modules in wasm', t => {
   const tokens = tokenizer.empty.parse();
   const result = new Parser(new TokenStream(tokens)).parse();
-
   // Empty ast, empty module
   snapshot(result);
 });
