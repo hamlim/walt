@@ -1,9 +1,11 @@
 import TokenStream from './TokenStream';
 import { I32 } from '../emiter/value_type';
-const { identity: I } = require('ramda');
-const Syntax = require('./Syntax');
-const Context = require('./Context');
-const { last } = require('ramda');
+import {
+  generateExport,
+  generateGlobal
+} from './generator';
+import Syntax from './Syntax';
+import Context from './Context'
 
 const precedence = {
   '=': 99,
@@ -24,32 +26,36 @@ class Parser {
     this.localSymbols = {};
   }
 
-  unexpectedValue(value) {
+  syntaxError(msg, error) {
     const { line, col } = this.token.start;
-    return new Error(
-      `Unexpected value at ${line}:${col}.
-         Value   : ${this.token.value}
-         Expected: ${value}`
+    return new SyntaxError(
+      `${error || 'Syntax error'} at ${line}:${col}
+      ${msg}`
+    );
+  }
+
+  unexpectedValue(value) {
+    return this.syntaxError(
+      'Unexpected value',
+      `Value   : ${this.token.value}
+       Expected: ${Array.isArray(value) ? value.join('|') : value}`
     );
   }
 
   unexpected(token) {
-    const { line, col } = this.token.start;
-    return new Error(
-      `Unexpected token at ${line}:${col}, ${this.token.value}
-         Token   : ${this.token.type}
-         Expected: ${token}`
+    return this.syntaxError(
+      'Unexpected token',
+       `Token   : ${this.token.type}
+       Expected: ${token}`
     );
   }
 
   unknown({ value }) {
-    const { line, col } = this.token.start;
-    return new Error(`Unexpected token at ${line}:${col} ${value}`);
+    return this.syntaxError('Unknown token', value);
   }
 
   unsupported() {
-    const { value, line, col } = this.token.start;
-    return new Error(`Language feature not supported ${line}:${col} ${value}`);
+    return this.syntaxError('Language feature not supported', this.token.value);
   }
 
   expect(type, values) {
@@ -85,17 +91,16 @@ class Parser {
     return { start: this.token.start, range: [this.token.start] };
   }
 
-  endNode(node, type) {
+  endNode(node, Type) {
     return {
       ...node,
-      type,
+      Type,
       end: this.token.end,
       range: node.range.concat(this.token.end)
     };
   }
 
   expression(node = this.startNode()) {
-
     switch(this.token.type) {
       case Syntax.Keyword:
         return this.keyword(node);
@@ -113,7 +118,7 @@ class Parser {
   punctuator(node) {
     switch(this.token.value) {
       case ';':
-        return null;
+        return this.endNode(node);
       case '=':
       case '+':
       case '*':
@@ -142,19 +147,25 @@ class Parser {
   export(node) {
     this.eat(['export']);
 
-    if (this.eat(['const', 'let'])) {
-      node.declaration = this.declaration(this.startNode());
-      return this.endNode(node, Syntax.Export);
-    }
+    node.declaration = this.declaration(this.startNode());
+    if (!node.declaration.init)
+      throw this.syntaxError('Exports must have a value');
 
-    throw this.unexpected(Syntax.Keyword);
+    this.endNode(node, Syntax.Export);
+    this.Program.Exports.push(generateExport(node));
+
+    return node;
   }
 
   binary(node) {
     return node;
   }
 
-  declaration(node) {
+  declaration(node, inFunction) {
+    node.const = this.token.value === 'const';
+    if (!this.eat(['const', 'let']))
+      throw this.unexpectedValue(['const', 'let']);
+
     node.id = this.token.value
     if (!this.eat(null, Syntax.Identifier))
       throw this.unexpected(Syntax.Identifier);
@@ -162,25 +173,31 @@ class Parser {
     if (!this.eat([':']))
       throw this.unexpectedValue(':');
 
+    node.type = this.token.value;
     if (!this.eat(null, Syntax.Type))
       throw this.unexpected(Syntax.Type);
 
-    if (this.eat(['='])) {
-      this.expression(node);
-      return this.endNode(node, Syntax.Declaration);
+    if (this.eat(['=']))
+      node.init = this.expression();
+
+    if (node.const && !node.init)
+      throw this.syntaxError('Constant value must be initialized');
+
+    if (!inFunction) {
+      node.globalIndex = this.Program.Globals.length;
+      this.Program.Globals.push(generateGlobal(node));
     }
 
-    this.unexpectedValue('=');
+    return this.endNode(node, Syntax.Declaration);
   }
 
-  identifier(parent, { start, end }) {
-    const { value: id } = this.current;
-    return { type: Syntax.Identifier, loc: { start, end }, id };
+  identifier(node) {
   }
 
-  constant(parent, { start, end }) {
-    const { value } = this.current;
-    return { type: Syntax.Constant, loc: { start, end }, value };
+  constant(node) {
+    node.value = this.token.value;
+    this.eat(null, Syntax.Constant);
+    return this.endNode(node, Syntax.Constant);
   }
 
   // Get the ast
@@ -191,7 +208,11 @@ class Parser {
       return {};
     }
 
-    const node = this.startNode();
+    const node = this.Program = this.startNode();
+    this.Program.Exports = [];
+    this.Program.Imports = [];
+    this.Program.Globals = [];
+
     node.body = [];
     while (this.stream.peek()) {
       const child = this.expression();
