@@ -10,7 +10,7 @@ const tokenizer = {
   empty: new Tokenizer(new Stream(''), tokenParsers),
   semicolon: new Tokenizer(new Stream(''), tokenParsers),
   constGlobals: new Tokenizer(new Stream('const answer: i32 = 42;'), tokenParsers),
-  exportGlobals: new Tokenizer(new Stream('export const answer: i32 = 42;'), tokenParsers)
+  exportGlobals: new Tokenizer(new Stream('export const answer: i32 = 42 + 2 * 3;'), tokenParsers)
 };
 
 test('the most basic of modules in wasm', t => {
@@ -32,8 +32,9 @@ test('compiles globals', t => {
   });
 });
 
-test('compiles exports', t => {
+test.only('compiles exports', t => {
   const tokens = tokenizer.exportGlobals.parse();
+  debugger;
   const ast = new Parser(new TokenStream(tokens)).parse();
   const stream = emit(ast);
   return WebAssembly.instantiate(

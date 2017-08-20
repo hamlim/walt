@@ -6,14 +6,28 @@ import {
 } from './generator';
 import Syntax from './Syntax';
 import Context from './Context'
+import { last } from 'ramda';
 
 const precedence = {
-  '=': 99,
   '+': 0,
   '-': 0,
   '*': 1,
   '/': 1
 };
+
+const assoc = op => {
+  switch(op) {
+    case '+':
+    case '-':
+    case '/':
+    case '*':
+      return 'left';
+    case '=':
+      return 'right';
+    default:
+      return 'left';
+  }
+}
 
 class Parser {
   constructor(tokenStream) {
@@ -87,8 +101,8 @@ class Parser {
     return false;
   }
 
-  startNode() {
-    return { start: this.token.start, range: [this.token.start] };
+  startNode(token = this.token) {
+    return { start: token.start, range: [token.start] };
   }
 
   endNode(node, Type) {
@@ -100,43 +114,68 @@ class Parser {
     };
   }
 
-  expression(node = this.startNode()) {
+  statement(node = this.startNode()) {
     switch(this.token.type) {
       case Syntax.Keyword:
         return this.keyword(node);
-      case Syntax.Punctuator:
-        return this.punctuator(node);
-      case Syntax.Constant:
-        return this.constant(node);
-      case Syntax.Identifier:
-        return this.identifier(node);
       default:
-        throw this.unknown(this.current);
+        throw this.unknown();
     }
   }
 
-  punctuator(node) {
-    switch(this.token.value) {
-      case ';':
-        return this.endNode(node);
-      case '=':
-      case '+':
-      case '*':
-      case '-':
-      case '/':
-      case '%':
-        return this.binary(node);
-      default:
-        throw this.unsupported(this.current);
-    }
+  expression(node = this.startNode(), inGroup) {
+    const operators = [];
+    const operands = [];
+
+    const consume = () =>
+      operands.push(
+        this.binary({
+          operator: operators.pop(),
+          right: operands.pop(),
+          left: operands.pop()
+        })
+      );
+
+    while(this.token && this.token.value !== ';') {
+      if (this.token.type === Syntax.Constant)
+        operands.push(this.constant());
+
+      if (this.token.type === Syntax.Punctuator) {
+        while(last(operators)
+          && precedence[last(operators).value] >= precedence[this.token.type]
+          && assoc(last(operators).value) === 'left'
+        ) consume();
+
+        operators.push(this.token);
+      }
+      // TODO "("
+      // TODO ")"
+      this.next();
+    };
+
+
+    while(operators.length)
+      consume();
+
+    // Should be a node
+    return operands.pop();
+  }
+
+  binary(opts) {
+    const node = {
+      ...this.startNode(opts.left),
+      ...opts
+    };
+    return this.endNode(node, Syntax.BinaryExpression);
   }
 
   keyword(node) {
     switch(this.token.value) {
       case 'let':
       case 'const':
-      case 'function':
         return this.declaration(node);
+      case 'function':
+        return this.functionDeclaration(node);
       case 'export':
         return this.export(node);
       default:
@@ -146,7 +185,6 @@ class Parser {
 
   export(node) {
     this.eat(['export']);
-
     node.declaration = this.declaration(this.startNode());
     if (!node.declaration.init)
       throw this.syntaxError('Exports must have a value');
@@ -154,10 +192,6 @@ class Parser {
     this.endNode(node, Syntax.Export);
     this.Program.Exports.push(generateExport(node));
 
-    return node;
-  }
-
-  binary(node) {
     return node;
   }
 
@@ -191,12 +225,15 @@ class Parser {
     return this.endNode(node, Syntax.Declaration);
   }
 
+  functionDeclaration(node) {
+  }
+
   identifier(node) {
   }
 
-  constant(node) {
-    node.value = this.token.value;
-    this.eat(null, Syntax.Constant);
+  constant(token = this.token) {
+    const node = this.startNode();
+    node.value = token.value;
     return this.endNode(node, Syntax.Constant);
   }
 
@@ -215,7 +252,7 @@ class Parser {
 
     node.body = [];
     while (this.stream.peek()) {
-      const child = this.expression();
+      const child = this.statement();
       if (child)
         node.body.push(child);
     }
